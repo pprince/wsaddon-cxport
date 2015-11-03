@@ -34,23 +34,23 @@ except ImportError:
     import xml.etree.ElementTree as ET
 
 
-SAVE_FMT_VERSION = 43
+SAVE_FMT_VERSION = 44
 
 columns = [
-    'categoryTop',
-    'categoryMid',
-    'categoryBot',
+    'category1',
+    'category2',
+    'category3',
     'itemId',
-    'name',
-    'chatLink',
-    'commoditySellOrderCount',
-    'commoditySellTop1',
-    'commoditySellTop10',
-    'commoditySellTop50',
-    'commodityBuyOrderCount',
-    'commodityBuyTop1',
-    'commodityBuyTop10',
-    'commodityBuyTop50',
+    'itemName',
+    'itemLink',
+    'cxSellOrders',
+    'cxSellTop1',
+    'cxSellTop10',
+    'cxSellTop50',
+    'cxBuyOrders',
+    'cxBuyTop1',
+    'cxBuyTop10',
+    'cxBuyTop50',
     'vendorSell',
     'vendorBuy',
 ]
@@ -79,7 +79,7 @@ for elem in tree.iterfind('N[@K="items"]/N'):
 
     item = {
         'itemId': itemId,
-        'chatLink': '<i%x>' % itemId,
+        'itemLink': '<i%x>' % itemId,
     }
 
     for column in columns:
@@ -100,7 +100,7 @@ for elem in tree.iterfind('N[@K="items"]/N'):
     items.append(item)
 
 
-items.sort(key=itemgetter('categoryTop', 'categoryMid', 'categoryBot', 'itemId'))
+items.sort(key=itemgetter('category1', 'category2', 'category3', 'itemId'))
 
 
 with open(output_file, 'w', newline='') as csvfile:

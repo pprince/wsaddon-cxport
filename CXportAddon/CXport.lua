@@ -7,7 +7,7 @@ local kAdditionalItems = {
 }
 
 
-local SAVE_FMT_VERSION = 43
+local SAVE_FMT_VERSION = 44
 
 
 local GeminiHook = Apollo.GetPackage("Gemini:Hook-1.0").tPackage
@@ -145,10 +145,10 @@ function CXport:AddItem(nItemId, tStats)
 
     -- General Item Info
 
-    tSaveItem.name = item:GetName()
-    tSaveItem.categoryTop = item:GetItemFamilyName() or ""
-    tSaveItem.categoryMid = item:GetItemCategoryName() or ""
-    tSaveItem.categoryBot = item:GetItemTypeName() or ""
+    tSaveItem.itemName = item:GetName()
+    tSaveItem.category1 = item:GetItemFamilyName() or ""
+    tSaveItem.category2 = item:GetItemCategoryName() or ""
+    tSaveItem.category3 = item:GetItemTypeName() or ""
 
 
     -- Vendor Price Data
@@ -172,19 +172,19 @@ function CXport:AddItem(nItemId, tStats)
     -- Commodity Price & Qty Data
 
     if tStats then
-        tSaveItem.commodityBuyOrderCount = tStats.nBuyOrderCount or 0
-        tSaveItem.commoditySellOrderCount = tStats.nSellOrderCount or 0
+        tSaveItem.cxBuyOrders = tStats.nBuyOrderCount or 0
+        tSaveItem.cxSellOrders = tStats.nSellOrderCount or 0
 
-        if tSaveItem.commodityBuyOrderCount > 0 then
-            tSaveItem.commodityBuyTop1 = tStats.arBuyOrderPrices[1].monPrice:GetAmount()
-            tSaveItem.commodityBuyTop10 = tStats.arBuyOrderPrices[2].monPrice:GetAmount()
-            tSaveItem.commodityBuyTop50 = tStats.arBuyOrderPrices[3].monPrice:GetAmount()
+        if tSaveItem.cxBuyOrders > 0 then
+            tSaveItem.cxBuyTop1 = tStats.arBuyOrderPrices[1].monPrice:GetAmount()
+            tSaveItem.cxBuyTop10 = tStats.arBuyOrderPrices[2].monPrice:GetAmount()
+            tSaveItem.cxBuyTop50 = tStats.arBuyOrderPrices[3].monPrice:GetAmount()
         end
 
-        if tSaveItem.commoditySellOrderCount > 0 then
-            tSaveItem.commoditySellTop1 = tStats.arSellOrderPrices[1].monPrice:GetAmount()
-            tSaveItem.commoditySellTop10 = tStats.arSellOrderPrices[2].monPrice:GetAmount()
-            tSaveItem.commoditySellTop50 = tStats.arSellOrderPrices[3].monPrice:GetAmount()
+        if tSaveItem.cxSellOrders > 0 then
+            tSaveItem.cxSellTop1 = tStats.arSellOrderPrices[1].monPrice:GetAmount()
+            tSaveItem.cxSellTop10 = tStats.arSellOrderPrices[2].monPrice:GetAmount()
+            tSaveItem.cxSellTop50 = tStats.arSellOrderPrices[3].monPrice:GetAmount()
         end
     end
 
