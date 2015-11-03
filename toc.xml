@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<Addon Author="pprince" APIVersion="11" Name="CXport" Description="Saves item and market data for consumption by other programs.">
-    <Script Name="libs\GeminiHook\GeminiHook-1.0.lua" />
-    <Script Name="CXport.lua" />
-    <Form Name="CXport.xml" />
-</Addon>
