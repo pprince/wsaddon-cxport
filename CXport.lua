@@ -1,89 +1,87 @@
--- Utility Functions etc.
+local GeminiHook = Apollo.GetPackage("Gemini:Hook-1.0").tPackage
 
-local function Set (list)
-    local set = {}
-    for _, l in ipairs(list) do set[l] = true end
-    return set
-end
-
-
-    
+local kAdditionalItems = {
+    -- Crafting Mats from Crafting Vendor
+        -- Weaponsmith
+            81866, 81870, 81874, 81878, 81882,
+}
 
 
--- Begin Module/AddOn ItemExport
+local CXport = {}
 
 
-local ItemExport = {}
-
-
-function ItemExport:new(o)
+function CXport:new(o)
     o = o or {}
     setmetatable(o, self)
     self.__index = self
-    self.saveData = {}
-    self.isScanning = false
-    self.queueSize = 0
-    self.additionalItems = {
-        19194,  -- One-Nine Fine Carbon
-        19195,  -- Two-Nines Fine Carbon
-        19196,  -- Three-Nines Fine Carbon
-        19190,  -- Fine Thread
-        14769,  -- Mage Thread
-        14785,  -- Star Thread
-        19197,  -- Spiroseed Oil
-        19198,  -- Coralscale Oil
-        19199,  -- Flameseed Oil
-        19191,  -- Low Viscosity Flux
-        19192,  -- Medium Viscosity Flux
-        19193,  -- High Viscosity Flux
-        19305,  -- Bonding Interface
-    }
     return o
 end
 
 
-function ItemExport:Init()
-    Apollo.RegisterAddon(self, true, "ItemExport", {
+function CXport:Init()
+    self.saveData = {}
+    self.isScanning = false
+    self.queueSize = 0
+
+    local bHasConfigureFunction = false
+    local strConfigureButtonText = ""
+    local tDependencies = {
         "MarketplaceCommodity",
-        "MarketplaceListings"
-    })
+        "MarketplaceListings",
+    }
+
+    GeminiHook:Embed(self)
+    Apollo.RegisterAddon(self, bHasConfigureFunction, strConfigureButtonText, tDependencies)
 end
 
 
-function ItemExport:OnLoad()
+function CXport:OnLoad()
+    self.MarketplaceCommodity = Apollo.GetAddon("MarketplaceCommodity")
+    self:PostHook(self.MarketplaceCommodity, "Initialize", "OnMarketplaceCommodityInitialize")
+
     Apollo.RegisterEventHandler("CommodityInfoResults", "OnCommodityInfoResults", self)
-    Apollo.RegisterSlashCommand("cxport", "OnSlashCommand_cxport", self);
-    Apollo.RegisterSlashCommand("craftingexport", "OnSlashCommand_craftingexport", self);
+
+    self.Xml = XmlDoc.CreateFromFile("CXport.xml")
 end
 
 
-function ItemExport:OnSlashCommand_cxport()
-    self.saveData.items = {}
+function CXport:OnMarketplaceCommodityInitialize(luaCaller)
+    if self.Button ~= nil then self.Button:Destroy() end
+    self.Button = Apollo.LoadForm(self.Xml, "CXportButton", self.MarketplaceCommodity.wndMain, self)
+end
+
+
+function CXport:OnCXportButton(wndHandler, wndControl, eMouseButton)
     self:ScanCX()
 end
 
 
-function ItemExport:OnSave(eLevel)
+function CXport:OnSave(eLevel)
     if eLevel ~= GameLib.CodeEnumAddonSaveLevel.Realm then
         return nil
     end
 
-    local save = {}
-    save = self.saveData
-
-    return save
+    return self.saveData
 end
 
+function CXport:OnRestore(eLevel, tData)
+    if eLevel ~= GameLib.CodeEnumAddonSaveLevel.Realm then
+        return nil
+    end
 
-function ItemExport:OnRestore(eLevel, tData)
-    if tData.items then
-        self.saveData.items = tData.items
+    if tData then
+        self.saveData = tData
     end
 end
 
 
-function ItemExport:ScanCX()
+function CXport:ScanCX()
+    self.saveData = {}
+    self.saveData.timestamp = os.date("!%c")
+    self.saveData.items = {}
+
     local queue = {}
+
     for idx1, tTopCategory in ipairs(MarketplaceLib.GetCommodityFamilies()) do
         for idx2, tMidCategory in ipairs(MarketplaceLib.GetCommodityCategories(tTopCategory.nId)) do
             for idx3, tBotCategory in pairs(MarketplaceLib.GetCommodityTypes(tMidCategory.nId)) do
@@ -97,7 +95,7 @@ function ItemExport:ScanCX()
     self.queueSize = #queue
     self.isScanning = true
 
-    for i, nItemId in ipairs(self.additionalItems) do
+    for i, nItemId in ipairs(kAdditionalItems) do
         self:AddItem(nItemId)
     end
 
@@ -107,96 +105,73 @@ function ItemExport:ScanCX()
 end
 
 
-function ItemExport:OnCommodityInfoResults(nItemId, tStats, tOrders)
+function CXport:OnCommodityInfoResults(nItemId, tStats, tOrders)
     if self.isScanning then
         self.queueSize = self.queueSize - 1
+        self:AddItem(nItemId, tStats)
         if self.queueSize == 0 then
             self.isScanning = false
+            RequestReloadUI()
         end
-    else
-        -- error
-        return nil
     end
-
-    self:AddItem(nItemId, tStats)
 end
 
 
-function ItemExport:AddItem(nItemId, tStats)
-    item = Item.GetDataFromId(nItemId)
-    tItemInfo = item:GetDetailedInfo()
+function CXport:AddItem(nItemId, tStats)
 
     tSaveItem = {}
 
-    tSaveItem.name = tItemInfo.tPrimary.strName
+    item = Item.GetDataFromId(nItemId)
 
-    if tItemInfo.tPrimary.tCost.arMonBuy and tItemInfo.tPrimary.tCost.arMonBuy[1] then
-        tSaveItem.vendorSell = tItemInfo.tPrimary.tCost.arMonBuy[1]:GetAmount()
-    else
-        tSaveItem.vendorSell = 0
+
+    -- General Item Info
+
+    tSaveItem.name = item:GetName()
+    tSaveItem.categoryTop = item:GetItemFamilyName() or ""
+    tSaveItem.categoryMid = item:GetItemCategoryName() or ""
+    tSaveItem.categoryBot = item:GetItemTypeName() or ""
+
+
+    -- Vendor Price Data
+
+    local vendorSell = item:GetBuyPrice()
+    local vendorBuy = item:GetSellPrice()
+
+    if vendorSell then
+        if vendorSell:GetTypeString() == "Credits" then
+            tSaveItem.vendorSell = vendorSell:GetAmount()
+        end
     end
 
-    if tItemInfo.tPrimary.tCost.arMonSell and tItemInfo.tPrimary.tCost.arMonSell[1] then
-        tSaveItem.vendorBuy = tItemInfo.tPrimary.tCost.arMonSell[1]:GetAmount()
-    else
-        tSaveItem.vendorBuy = 0
+    if vendorBuy then
+        if vendorBuy:GetTypeString() == "Credits" then
+            tSaveItem.vendorBuy = vendorBuy:GetAmount()
+        end
     end
+
+
+    -- Commodity Price & Qty Data
 
     if tStats then
-        tSaveItem.commodityBuy = tStats.arBuyOrderPrices[1].monPrice:GetAmount()
-        tSaveItem.commoditySell = tStats.arSellOrderPrices[1].monPrice:GetAmount()
-        tSaveItem.commodityBuyTop10 = tStats.arBuyOrderPrices[2].monPrice:GetAmount()
-        tSaveItem.commoditySellTop10 = tStats.arSellOrderPrices[2].monPrice:GetAmount()
-        tSaveItem.commodityBuyTop50 = tStats.arBuyOrderPrices[3].monPrice:GetAmount()
-        tSaveItem.commoditySellTop50 = tStats.arSellOrderPrices[3].monPrice:GetAmount()
         tSaveItem.commodityBuyOrderCount = tStats.nBuyOrderCount or 0
         tSaveItem.commoditySellOrderCount = tStats.nSellOrderCount or 0
-    else
-        tSaveItem.commodityBuy = 0
-        tSaveItem.commoditySell = 0
-        tSaveItem.commodityBuyTop10 = 0
-        tSaveItem.commoditySellTop10 = 0
-        tSaveItem.commodityBuyTop50 = 0
-        tSaveItem.commoditySellTop50 = 0
-        tSaveItem.commodityBuyOrderCount = 0
-        tSaveItem.commoditySellOrderCount = 0
+
+        if tSaveItem.commodityBuyOrderCount > 0 then
+            tSaveItem.commodityBuyTop1 = tStats.arBuyOrderPrices[1].monPrice:GetAmount()
+            tSaveItem.commodityBuyTop10 = tStats.arBuyOrderPrices[2].monPrice:GetAmount()
+            tSaveItem.commodityBuyTop50 = tStats.arBuyOrderPrices[3].monPrice:GetAmount()
+        end
+
+        if tSaveItem.commoditySellOrderCount > 0 then
+            tSaveItem.commoditySellTop1 = tStats.arSellOrderPrices[1].monPrice:GetAmount()
+            tSaveItem.commoditySellTop10 = tStats.arSellOrderPrices[2].monPrice:GetAmount()
+            tSaveItem.commoditySellTop50 = tStats.arSellOrderPrices[3].monPrice:GetAmount()
+        end
     end
 
     self.saveData.items[nItemId] = tSaveItem
 end
 
 
-function ItemExport:OnSlashCommand_craftingexport()
-    local sCircuitBoardTradeskills = Set({
-        CraftingLib.CodeEnumTradeskill.Armorer,
-        CraftingLib.CodeEnumTradeskill.Outfitter,
-        CraftingLib.CodeEnumTradeskill.Tailor,
-        CraftingLib.CodeEnumTradeskill.Weaponsmith,
-    })
-
-    for idx, tTradeskill in ipairs(CraftingLib.GetKnownTradeskills()) do
-        if sCircuitBoardTradeskills[tTradeskill.eId] then
-            self:ExportTradeskill(tTradeskill)
-        end
-    end
-end
-
-
-function ItemExport:ExportTradeskill(tTradeskill) -- {[eId], [strName]}
-    if not self.saveData.schematics then
-        self.saveData.schematics = {}
-    end
-
-    self.saveData.schematics[tTradeskill.strName] = {}
-
-    local tSchematics = CraftingLib.GetSchematicList(tTradeskill.eId, nil, nil, true) -- include not-known schematics
-
-    for idx, tSchematic in ipairs(tSchematics) do
-        self.saveData.schematics[tTradeskill.strName][tSchematic.nSchematicId] = CraftingLib.GetSchematicInfo(tSchematic.nSchematicId) 
-    end
-end
-
-
-
-local ItemExportInst = ItemExport:new()
-ItemExport:Init()
+local CXportInst = CXport:new()
+CXportInst:Init()
