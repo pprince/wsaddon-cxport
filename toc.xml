@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Addon Author="Tigh" APIVersion="9" Name="ItemExport" Description="Saves item and market data for consumption by other programs.">
+    <Script Name="ItemExport.lua" />
+</Addon>
