@@ -1,10 +1,16 @@
-local GeminiHook = Apollo.GetPackage("Gemini:Hook-1.0").tPackage
+
 
 local kAdditionalItems = {
     -- Crafting Mats from Crafting Vendor
         -- Weaponsmith
             81866, 81870, 81874, 81878, 81882,
 }
+
+
+local SAVE_FMT_VERSION = 43
+
+
+local GeminiHook = Apollo.GetPackage("Gemini:Hook-1.0").tPackage
 
 
 local CXport = {}
@@ -75,9 +81,22 @@ function CXport:OnRestore(eLevel, tData)
 end
 
 
+-- Portable ISO 8601 timestamp for pure Lua ...
+local function now8601()
+    local now = os.time()
+    local tz_offset_in_seconds = os.difftime(now, os.time(os.date("!*t", now)))
+    local h, m = math.modf(tz_offset_in_seconds / 3600)
+    local tz_offset_hhmm = string.format("%+.4d", 100 * h + 60 * m)
+    return os.date("%Y-%m-%d %H:%M:%S") .. tz_offset_hhmm
+end
+-- ... adapted from http://lua-users.org/wiki/TimeZone
+
+
 function CXport:ScanCX()
     self.saveData = {}
-    self.saveData.timestamp = os.date("!%c")
+    self.saveData.savefmtversion = SAVE_FMT_VERSION
+    self.saveData.timestamp = now8601()
+    self.saveData.realm = GameLib.GetRealmName()
     self.saveData.items = {}
 
     local queue = {}
